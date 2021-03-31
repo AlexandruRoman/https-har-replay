@@ -1,16 +1,22 @@
-var hoxy = require('hoxy');
-var fs = require("fs");
+// var hoxy = require('hoxy');
+import Sniffer from 'web-proxy-sniffer';
+import * as fs from 'fs';
+
 let rawdata = fs.readFileSync(process.argv[2]);
 let har = JSON.parse(rawdata);
 let responses = {};
 
-buildResponse();
-runProxy();
+try {
+  buildResponse();
+  runProxy();
+} catch (error) {
+  console.log('\n', error, '\n')
+}
 
 function buildResponse() {
   //filter entries by response `content-type`
   har.log.entries = har.log.entries.filter((entry) => {
-    header = entry.response.headers.find((h) => h.name == "content-type");
+    let header = entry.response.headers.find((h) => h.name == "content-type");
     if (!header) return false;
     if (/text\/html|text\/javascrip|application\/json/.test(header.value))
       return true;
@@ -21,15 +27,14 @@ function buildResponse() {
   for (let entry of har.log.entries) {
     if (!entry.response.content.text)
       continue;
-    let encoding = entry.response.content.encoding;
+    let encoding = "utf8";
+    if (entry.response.content.encoding)
+      encoding = entry.response.content.encoding;
     let text = entry.response.content.text;
-    if (encoding) {
-      let buff = Buffer.from(text, encoding);
-      text = buff.toString();
-    }
+    let buff = Buffer.from(text, encoding);
 
     let response = {};
-    response.string = text;
+    response.body = buff;
     response.headers = entry.response.headers.filter(
       (h) =>
         h.name != "content-encoding" &&
@@ -43,25 +48,34 @@ function buildResponse() {
 }
 
 function runProxy() {
-  var proxy = hoxy.createServer({
+  const proxy = Sniffer.createServer({
     certAuthority: {
       key: fs.readFileSync('my-certificate.key.pem'),
       cert: fs.readFileSync('my-certificate.crt.pem')
     }
-  }).listen(8080);
+  });
 
   proxy.intercept({
-    phase: 'response',
-    as: 'string'
+    phase: 'response'
   }, (req, resp) => {
-    let response = responses[req.fullUrl()];
-    if (!response)
-      return;
-    if (response.string)
-      resp.string = response.string;
-    if (response.headers)
-      resp.headers = response.headers;
-    if (response.status)
-      resp.statusCode = response.status;
+    let response = responses[fullUrl(req)];
+    if (response) {
+      if (response.body)
+        resp.body = response.body;
+      if (response.headers)
+        resp.headers = composeHeaders(response.headers);
+      if (response.status)
+        resp.statusCode = response.status;
+    }
+    return resp;
   });
+
+  proxy.listen(8080);
+}
+
+function fullUrl(request) { return `${request.protocol}//${request.hostname}${request.url}`; }
+
+function composeHeaders(headers)
+{
+  return headers.reduce((acc, item) => (acc[item.name] = item.value, acc), {});
 }
