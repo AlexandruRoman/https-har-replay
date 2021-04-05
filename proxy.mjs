@@ -1,6 +1,6 @@
 // var hoxy = require('hoxy');
-import Sniffer from 'web-proxy-sniffer';
-import * as fs from 'fs';
+import Sniffer from "web-proxy-sniffer";
+import * as fs from "fs";
 
 let rawdata = fs.readFileSync(process.argv[2]);
 let har = JSON.parse(rawdata);
@@ -10,7 +10,7 @@ try {
   buildResponse();
   runProxy();
 } catch (error) {
-  console.log('\n', error, '\n')
+  console.log("\n", error, "\n");
 }
 
 function buildResponse() {
@@ -25,8 +25,7 @@ function buildResponse() {
 
   //change responses `httpVersion` and remove some headers
   for (let entry of har.log.entries) {
-    if (!entry.response.content.text)
-      continue;
+    if (!entry.response.content.text) continue;
     let encoding = "utf8";
     if (entry.response.content.encoding)
       encoding = entry.response.content.encoding;
@@ -50,32 +49,36 @@ function buildResponse() {
 function runProxy() {
   const proxy = Sniffer.createServer({
     certAuthority: {
-      key: fs.readFileSync('my-certificate.key.pem'),
-      cert: fs.readFileSync('my-certificate.crt.pem')
-    }
+      key: fs.readFileSync("my-certificate.key"),
+      cert: fs.readFileSync("my-certificate.crt"),
+    },
   });
 
-  proxy.intercept({
-    phase: 'response'
-  }, (req, resp) => {
-    let response = responses[fullUrl(req)];
-    if (response) {
-      if (response.body)
-        resp.body = response.body;
-      if (response.headers)
-        resp.headers = composeHeaders(response.headers);
-      if (response.status)
-        resp.statusCode = response.status;
+  proxy.intercept(
+    {
+      phase: "response",
+    },
+    (req, resp) => {
+      let response = responses[fullUrl(req)];
+      if (response) {
+        if (response.body) resp.body = response.body;
+        if (response.headers) resp.headers = composeHeaders(response.headers);
+        if (response.status) resp.statusCode = response.status;
+      }
+      return resp;
     }
-    return resp;
-  });
+  );
 
   proxy.listen(8080);
 }
 
-function fullUrl(request) { return `${request.protocol}//${request.hostname}${request.url}`; }
+function fullUrl(request) {
+  return `${request.protocol}//${request.hostname}${request.url}`;
+}
 
-function composeHeaders(headers)
-{
-  return headers.reduce((acc, item) => (acc[item.name] = item.value, acc), {});
+function composeHeaders(headers) {
+  return headers.reduce(
+    (acc, item) => ((acc[item.name] = item.value), acc),
+    {}
+  );
 }
