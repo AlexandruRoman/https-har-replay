@@ -14,14 +14,6 @@ try {
 }
 
 function buildResponse() {
-  //filter entries by response `content-type`
-  har.log.entries = har.log.entries.filter((entry) => {
-    let header = entry.response.headers.find((h) => h.name == "content-type");
-    if (!header) return false;
-    if (/text\/html|text\/javascrip|application\/json/.test(header.value))
-      return true;
-    return false;
-  });
 
   //change responses `httpVersion` and remove some headers
   for (let entry of har.log.entries) {
@@ -35,12 +27,13 @@ function buildResponse() {
 
     let response = {};
     response.body = buff;
-    response.headers = entry.response.headers.filter(
-      (h) =>
-        h.name != "content-encoding" &&
-        h.name != "Content-Encoding" &&
-        h.name != "content-length"
-    );
+    response.headers = entry.response.headers
+      .filter(
+        (h) =>
+          h.name != "content-encoding" &&
+          h.name != "Content-Encoding" &&
+          h.name != "content-length"
+      );
     response.status = entry.response.status;
 
     responses[entry.request.url] = response;
@@ -75,7 +68,6 @@ function runProxy() {
 
 function fullUrl(request) { return `${request.protocol}//${request.hostname}${request.url}`; }
 
-function composeHeaders(headers)
-{
+function composeHeaders(headers) {
   return headers.reduce((acc, item) => (acc[item.name] = item.value, acc), {});
 }
