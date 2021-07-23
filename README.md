@@ -51,3 +51,17 @@ Now, all you have to do is:
 - change the proxy to `proxy` from the SwitchyOmega Chrome extension's popup panel
 - navigate to the page where the HAR file was captured from
 - be happy or sad (depending on the results)
+
+###### Alternative: configure proxy settings for Chromium/Google Chrome from Command Line
+
+_Warning: This approach is still in its early stages and experimental, please use `node` v14.x.x_
+
+Here is how to configure the proxy settings manually for your browser session, in case you don't want to use SwitchyOmega.
+
+After you started the proxy server (as indicated in step 4), open a separate terminal window and run:
+
+```bash
+google-chrome-stable  --proxy-server="http://localhost:8080" --proxy-bypass-list="<-loopback>"
+```
+
+`google-chrome-stable` can also be replaced with `google-chrome-beta` or `chromium` (or the path to the Chrome/Chromium executable on your machine)

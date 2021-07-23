@@ -6,6 +6,28 @@ let rawdata = fs.readFileSync(process.argv[2]);
 let har = JSON.parse(rawdata);
 let responses = {};
 
+// TODO: improve on this approach as it only works if node is version 14 or lower
+class Proxy extends Sniffer.Proxy {
+  constructor(options) {
+    super(options);
+  }
+
+  async onIntercept(phase, request, response) {
+    if (phase === "request") {
+      // Hacky way to handle the three initial requests sent by Chrome to random domains in order to verify whether ISPs intercept requests that cannot be resolved and serve their own error pages (https://www.ghacks.net/2012/02/18/chrome-connecting-to-random-domains-on-start-here-is-why/) . This case isn't considered by web-proxy-sniffer, causing our proxy server to fail when the proxy settings are configured manually. It seems that a proxy manager (e.g. SwitchyOmega browser extension) is handling this case behind the scenes and doesn't even send the random requests to our proxy server.
+      if (request.hostname.match(/^[a-z]+$/g)) {
+        return Promise.resolve();
+      }
+    }
+
+    return super.onIntercept(phase, request, response);
+  }
+}
+
+function createServer(certAuthority) {
+  return new Proxy(certAuthority);
+}
+
 try {
   buildResponse();
   runProxy();
@@ -40,7 +62,7 @@ function buildResponse() {
 }
 
 function runProxy() {
-  const proxy = Sniffer.createServer({
+  const proxy = createServer({
     certAuthority: {
       key: fs.readFileSync("my-certificate.key"),
       cert: fs.readFileSync("my-certificate.crt"),
